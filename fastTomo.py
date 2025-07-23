@@ -272,8 +272,8 @@ class ScreenGrabberApp:
         add_slider("Blur", self.blur_var, 1, 31)
         add_slider("Thresh", self.thresh_var, 0.0, 1.0)
         add_slider("Margin", self.margin_var, 1, 100)
-        add_slider("Area LB", self.area_lb_var, 0, 10000)
-        add_slider("Area UB", self.area_ub_var, 0, 100000)
+        add_slider("Area LB", self.area_lb_var, 10, 10000)
+        add_slider("Area UB", self.area_ub_var, 10000, 100000)
 
         self.toggle_height_slider()
 
@@ -284,7 +284,7 @@ class ScreenGrabberApp:
             self.slider_widgets["H"].pack(fill=tk.X)
     
     def segmentation(self, img):
-        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img_gray = 1-cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         img_resized = cv2.resize(img_gray, (self.img_size, self.img_size), interpolation=cv2.INTER_LINEAR)
 
         # Blur
@@ -339,7 +339,7 @@ class ScreenGrabberApp:
         # Get index of largest object (if any)
         largest_index = int(np.argmax(areas)) if areas else None
 
-        return img_resized, clean_binary, blurred, filtered_contours, centroids, largest_index
+        return 1-img_resized, clean_binary, blurred, filtered_contours, centroids, largest_index
 
     def get_img_display(self, img_resized):
         return (cv2.resize(img_resized, (self.display_size, self.display_size), interpolation=cv2.INTER_LINEAR) * 255).astype('uint8')
