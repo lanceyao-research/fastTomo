@@ -22,34 +22,34 @@ fastTomo enables automated tilt-series acquisition with real-time particle track
 ## Requirements
 
 ### Core Dependencies
-...
-numpy
-opencv-python
-matplotlib
-mss
-...
+
+numpy  
+opencv-python  
+matplotlib  
+mss  
+
 
 ### Optional Dependencies
-...
-temscript          # For microscope control (FEI/ThermoFisher)
-ultralytics        # For YOLO-based ML tracking
-...
+
+temscript          # For microscope control (FEI/ThermoFisher)  
+ultralytics        # For YOLO-based ML tracking  
+
 
 ### Installation
-...bash
-pip install numpy opencv-python matplotlib mss
-pip install temscript        # If connecting to microscope
-pip install ultralytics      # If using ML tracking
-...
+
+pip install numpy opencv-python matplotlib mss  
+pip install temscript        # If connecting to microscope  
+pip install ultralytics      # If using ML tracking  
+
 
 ## Usage
 
 ### Quick Start
 
 1. **Launch the application**:
-   ...bash
-   python fastTomo.py
-   ...
+
+   python fastTomo.py  
+
 
 2. **Configure capture source**:
    - **Screenshot (MSS)**: Capture a region of your screen
@@ -152,6 +152,3 @@ This approach is faster than using camera APIs directly, enabling real-time trac
 Pacific Northwest National Laboratory  
 📧 lance.yao@pnnl.gov
 
-## License
-
-[Add your license here]
