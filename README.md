@@ -92,6 +92,7 @@ pip install ultralytics      # If using ML tracking
 - Requires a trained YOLO model (.pt file)
 - Better for complex scenes or low-contrast particles
 - Runs inference in a separate thread for smooth UI
+- A yolov8_cell.pt is trained and provided to track cells in HAADF-STEM mode.
 
 ### Configuration Parameters
 
@@ -144,7 +145,7 @@ This approach is faster than using camera APIs directly, enabling real-time trac
 ### Tracking Issues
 - Adjust blur and threshold for classical method
 - Ensure particle is within Area LB/UB bounds
-- Try inverting contrast if particle is darker than background
+- Try inverting contrast if particle is brighter than background
 
 ## Author
 
