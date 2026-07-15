@@ -12,6 +12,9 @@ import threading
 import json
 import queue
 import socket
+from pathlib import Path
+from datetime import datetime
+import tifffile
 
 # Try to import temscript, but don't fail if not available
 try:
@@ -162,6 +165,22 @@ class ScreenGrabberApp:
         self.update_status_circle()
         self.update_tracking_status_label()
         self.update_image()
+
+        # For outputs
+        self.FLAG_TILTING_IS_ON = False
+
+        # Tracks whether tilting was on during the previous update
+        self._previous_tilting_state = False
+        
+        # Dictionary containing the four active TIFF writers
+        self._tilt_tiff_writers = None
+        
+        # Parent directory for recorded stacks
+        self.tilt_stack_directory = Path("exports")
+        self.tilt_stack_directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
     def load_config(self):
         """Load configuration from JSON file"""
@@ -1348,6 +1367,7 @@ class ScreenGrabberApp:
     def toggle_tilting(self):
         self.tilt_trigger = not self.tilt_trigger
         state = 'start' if self.tilt_trigger else 'stop'
+        self.FLAG_TILTING_IS_ON = True if self.tilt_trigger else False
         self.log(f"Tilting {state}.")
         self.update_tracking_status_label()
 
@@ -1560,6 +1580,90 @@ class ScreenGrabberApp:
 
         return cv2.cvtColor(img_overlay, cv2.COLOR_BGR2RGB)
 
+
+    def start_tilt_tiff_stacks(self):
+        """
+        Create a new folder and open four TIFF stacks.
+    
+        This is called once when FLAG_TILTING_IS_ON changes
+        from False to True.
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+        output_directory = (
+            self.tilt_stack_directory / f"tilt_capture_{timestamp}"
+        )
+        output_directory.mkdir(parents=True, exist_ok=True)
+    
+        self._tilt_tiff_writers = {
+            "display": tifffile.TiffWriter(
+                output_directory / "img_display.tif",
+                bigtiff=True,
+            ),
+            "blur": tifffile.TiffWriter(
+                output_directory / "img_blur_display.tif",
+                bigtiff=True,
+            ),
+            "bw": tifffile.TiffWriter(
+                output_directory / "img_bw_display_rgb.tif",
+                bigtiff=True,
+            ),
+            "overlay": tifffile.TiffWriter(
+                output_directory / "img_overlay_rgb.tif",
+                bigtiff=True,
+            ),
+        }
+    
+        self.current_tilt_stack_directory = output_directory
+        self.log(f"Started TIFF recording: {output_directory}")
+    
+    
+    def write_tilt_tiff_frames(
+        self,
+        img_display,
+        img_blur_display,
+        img_bw_display_rgb,
+        img_overlay_rgb,
+    ):
+        """Append one frame to each of the four TIFF stacks."""
+        if self._tilt_tiff_writers is None:
+            raise RuntimeError("TIFF writers have not been initialized.")
+    
+        frames = {
+            "display": img_display,
+            "blur": img_blur_display,
+            "bw": img_bw_display_rgb,
+            "overlay": img_overlay_rgb,
+        }
+    
+        for name, frame in frames.items():
+            frame = np.asarray(frame)
+    
+            # Avoid saving float64 unless that precision is intentional
+            if frame.dtype == np.float64:
+                frame = frame.astype(np.float32)
+    
+            # Some display functions can return non-contiguous array views
+            frame = np.ascontiguousarray(frame)
+    
+            self._tilt_tiff_writers[name].write(
+                frame,
+                metadata=None,
+            )
+
+
+    def stop_tilt_tiff_stacks(self):
+        """Close all four TIFF stacks."""
+        if self._tilt_tiff_writers is None:
+            return
+    
+        for writer in self._tilt_tiff_writers.values():
+            writer.close()
+    
+        self._tilt_tiff_writers = None
+        print("Stopped TIFF recording.")
+
+            
     def update_image(self):
         try:
             # Get frame from selected capture source
@@ -1574,6 +1678,29 @@ class ScreenGrabberApp:
             img_blur_display = self.get_img_blur_display(img_blur)
             img_bw_display_rgb = self.get_img_bw_display_rgb(img_bw)
             img_overlay_rgb = self.get_img_overlay_rgb(img_display, contours, centroids, largest_index, bboxes)
+            # Tilting has just changed from False to True
+            if (
+                self.FLAG_TILTING_IS_ON
+                and not self._previous_tilting_state
+            ):
+                self.start_tilt_tiff_stacks()
+    
+            # Append the current images while tilting is active
+            if self.FLAG_TILTING_IS_ON:
+                self.write_tilt_tiff_frames(
+                    img_display=img_display,
+                    img_blur_display=img_blur_display,
+                    img_bw_display_rgb=img_bw_display_rgb,
+                    img_overlay_rgb=img_overlay_rgb,
+                )
+    
+            # Tilting has just changed from True to False
+            elif self._previous_tilting_state:
+                self.stop_tilt_tiff_stacks()
+    
+            self._previous_tilting_state = self.FLAG_TILTING_IS_ON
+    
+            # Continue with your existing image-display code...
 
             self.im1.set_data(img_display)
             self.im2.set_data(img_blur_display)
